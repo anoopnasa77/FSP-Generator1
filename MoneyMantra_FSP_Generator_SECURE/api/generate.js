@@ -61,7 +61,15 @@ async function buildDocx(fspText, clientName) {
 }
 
 // ---------- Build a simple PDF from the plain-text FSP ----------
+// ---------- Build a simple PDF from the plain-text FSP ----------
 async function buildPdf(fspText, clientName) {
+  const sanitize = (str) => str
+    .replace(/₹/g, "Rs.")
+    .replace(/[^\x00-\xFF]/g, "?");
+
+  fspText = sanitize(fspText);
+  clientName = sanitize(clientName);
+
   const pdfDoc = await PDFDocument.create();
   const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
   const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
