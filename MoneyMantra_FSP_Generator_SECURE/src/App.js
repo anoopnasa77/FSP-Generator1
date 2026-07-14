@@ -95,7 +95,7 @@ export default function App() {
     const totalEMI = (parseFloat(form.homeLoanEMI) || 0) + (parseFloat(form.personalLoanEMI) || 0) + (parseFloat(form.carLoanEMI) || 0);
     const totalLoans = (parseFloat(form.homeLoan) || 0) + (parseFloat(form.personalLoan) || 0) + (parseFloat(form.carLoan) || 0);
     const totalAssets = (parseFloat(form.bankBalance) || 0) + (parseFloat(form.mutualFunds) || 0) + (parseFloat(form.ppfEpf) || 0) + (parseFloat(form.gold) || 0) + (parseFloat(form.property) || 0);
-    return `You are a certified financial planner at Money Mantra, headed by Viral Bhatt (CFP, AMFI Registered Distributor). Create a comprehensive Financial Solution Plan (FSP).
+    return `You are a financial planner at Money Mantra, headed by Viral Bhatt (AMFI Registered Mutual Fund Distributor, As featured in CNBC Awaaz & Zee Business). Create a comprehensive Financial Solution Plan (FSP).
 
 CLIENT: ${form.clientName}, Age ${form.clientAge} | Spouse: ${form.spouseName || "N/A"} Age ${form.spouseAge || "N/A"} | Children: ${form.children || "None"} | City: ${form.city}
 INCOME: Self ₹${form.monthlyIncome}/mo | Spouse ₹${form.spouseIncome || 0}/mo | Total ₹${totalIncome}/mo
@@ -133,7 +133,7 @@ Avalanche method (highest interest first). Each loan: outstanding, EMI, rate, pa
 
 End with NEXT STEPS table: 5-7 priority actions, owner, timeline.
 
-Footer: "Prepared by: Viral Bhatt | Founder, Money Mantra | AMFI Registered Mutual Fund Distributor | CFP"`;
+Footer: "Prepared by: Viral Bhatt | Founder, Money Mantra | AMFI Registered Mutual Fund Distributor | As featured in CNBC Awaaz & Zee Business"`;
   };
 
   const generateFSP = async () => {
@@ -145,11 +145,8 @@ Footer: "Prepared by: Viral Bhatt | Founder, Money Mantra | AMFI Registered Mutu
         body: JSON.stringify({ prompt: buildPrompt(), form }),
       });
       const data = await response.json();
-      if (data.fspText) {
-        setGeneratedFSP(data.fspText);
-        setEmailStatus(data.emailStatus || null);
-        setStep(7);
-      } else setError(data.error || "Generation failed. Please try again.");
+      if (data.fspText) { setGeneratedFSP(data.fspText); setEmailStatus(data.emailStatus || null); setStep(7); }
+      else setError(data.error || "Generation failed. Please try again.");
     } catch (e) { setError("Network error. Please try again."); }
     setLoading(false);
   };
@@ -168,7 +165,9 @@ Footer: "Prepared by: Viral Bhatt | Founder, Money Mantra | AMFI Registered Mutu
       {/* Header */}
       <div style={{ background: "#fff", padding: "14px 32px", display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: `4px solid ${ORANGE}`, boxShadow: "0 4px 20px rgba(0,0,0,0.15)" }}>
         <img src="/logo.png" alt="Money Mantra" style={{ height: 56, width: "auto" }} />
-        <div style={{ fontSize: 11, opacity: 0.8, textAlign: "right", fontFamily: "sans-serif", color: DARK_ORANGE }}>Financial Solution Plan Generator<br/>Viral Bhatt | CFP | AMFI Registered</div>
+        <div style={{ fontSize: 11, textAlign: "right", fontFamily: "sans-serif", color: DARK_ORANGE, lineHeight: 1.6 }}>
+          AMFI Registered Mutual Fund Distributor<br/>As featured in CNBC Awaaz &amp; Zee Business
+        </div>
       </div>
 
       {/* Steps */}
@@ -281,14 +280,14 @@ Footer: "Prepared by: Viral Bhatt | Founder, Money Mantra | AMFI Registered Mutu
               <div style={{ background: emailStatus.clientSent ? "rgba(76,175,80,0.1)" : "#ff000022", border: `1px solid ${emailStatus.clientSent ? "#4CAF50" : "#ff4444"}`, borderRadius: 10, padding: "12px 18px", marginBottom: 20, fontFamily: "sans-serif", fontSize: 13.5 }}>
                 {emailStatus.clientSent
                   ? `📧 PDF & Word copies sent to ${form.clientEmail}${emailStatus.advisorSent ? " and Viral Bhatt" : ""}.`
-                  : `⚠️ Could not send email automatically (${emailStatus.error || "unknown error"}). Please use Copy/Download above and share manually.`}
+                  : `⚠️ Could not send email (${emailStatus.error || "unknown error"}). Use Copy/Download above to share manually.`}
               </div>
             )}
             <div style={{ background: "rgba(255,255,255,0.03)", border: `1px solid ${ORANGE}33`, borderRadius: 12, padding: "28px 32px", fontFamily: "sans-serif", fontSize: 13.5, lineHeight: 1.7, color: "#e8e8e8", whiteSpace: "pre-wrap", maxHeight: "70vh", overflowY: "auto" }}>
               {generatedFSP}
             </div>
             <div style={{ marginTop: 16, padding: "12px 20px", background: "rgba(255,140,0,0.06)", borderRadius: 8, fontFamily: "sans-serif", fontSize: 12, color: "rgba(255,255,255,0.5)", textAlign: "center" }}>
-              💡 This text is shown for your reference — the properly formatted PDF and Word versions were emailed.
+              💡 The properly formatted PDF and Word versions were emailed to {form.clientEmail}
             </div>
           </div>
         )}
