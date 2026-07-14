@@ -105,6 +105,8 @@ LOANS: Home ₹${form.homeLoan || 0} (EMI ₹${form.homeLoanEMI || 0}) | Persona
 INSURANCE: Life ₹${form.lifeInsurance || 0} | Term ₹${form.termCover || 0} | Health ₹${form.healthInsurance || 0} | Accident ₹${form.accidentInsurance || 0}
 GOALS: ${form.goals} | Retirement Age: ${form.retirementAge} | Risk: ${form.riskProfile}
 
+IMPORTANT: Do NOT use emojis or special Unicode symbols in the output. Use plain text alternatives like [OK], [!], [X], Rs. instead of ₹, - instead of em-dash.
+
 Create detailed FSP with EXACTLY these 6 sections:
 
 ## SECTION 1: CLIENT SNAPSHOT & KEY FINANCIAL RATIOS
@@ -113,7 +115,7 @@ Client overview table + calculate:
 2. EMI-to-Income Ratio = (Total EMI / Total Income) × 100 → Ideal: Max 40%
 3. Investment-to-Savings Ratio → Ideal: 80%+
 4. Debt-to-Asset Ratio = (Total Debt / Total Assets) × 100 → Ideal: Below 50%
-Show status: ✅ Healthy / ⚠️ Needs Attention / 🔴 Critical
+Show status: [Healthy] / [Needs Attention] / [Critical]
 
 ## SECTION 2: CONTINGENCY FUND
 Required = 6 months (expenses + EMI). Current status, gap, where to park (Liquid Fund/FD/Savings split).
@@ -125,7 +127,7 @@ Life Insurance: Ideal = 15-20x annual income, gap analysis. Health: ideal vs cur
 For each goal: target amount, timeline, monthly SIP needed (12% CAGR), fund categories, asset allocation %.
 Include retirement corpus calculation.
 
-## SECTION 5: LOAN REPAYMENT PLAN ⚠️ HIGH PRIORITY
+## SECTION 5: LOAN REPAYMENT PLAN [HIGH PRIORITY]
 Avalanche method (highest interest first). Each loan: outstanding, EMI, rate, payoff date, prepayment advice.
 
 ## SECTION 6: TAX PLANNING & ESTATE PLANNING
