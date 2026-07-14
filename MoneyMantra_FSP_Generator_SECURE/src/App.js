@@ -141,23 +141,134 @@ Footer: "Prepared by: Viral Bhatt | Founder, Money Mantra | AMFI Registered Mutu
   const generateFSP = async () => {
     setLoading(true); setError(""); setGeneratedFSP(""); setEmailStatus(null);
     try {
+      // Step 1: Get FSP text + DOCX from server
       const response = await fetch("/api/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ prompt: buildPrompt(), form }),
       });
       const data = await response.json();
-      if (data.fspText) { setGeneratedFSP(data.fspText); setEmailStatus(data.emailStatus || null); setStep(7); }
-      else setError(data.error || "Generation failed. Please try again.");
+      if (!data.fspText) { setError(data.error || "Generation failed. Please try again."); setLoading(false); return; }
+
+      const fspText = data.fspText;
+      setGeneratedFSP(fspText);
+
+      // Step 2: Generate PDF in browser using jsPDF (full Unicode support — handles ₹ and all symbols)
+      let pdfBase64 = null;
+      try {
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF({ unit: "pt", format: "a4" });
+        const pageWidth = doc.internal.pageSize.getWidth();
+        const pageHeight = doc.internal.pageSize.getHeight();
+        const margin = 56;
+        const maxWidth = pageWidth - margin * 2;
+        const orange = [179, 89, 0];
+        let y = margin + 10;
+
+        const addPage = () => { doc.addPage(); y = margin + 10; };
+
+        // Logo
+        const img = new Image();
+        await new Promise((resolve) => {
+          img.onload = resolve;
+          img.onerror = resolve;
+          img.src = "/logo.png";
+        });
+        if (img.complete && img.naturalWidth > 0) {
+          const logoW = 180, logoH = 87;
+          doc.addImage(img, "PNG", (pageWidth - logoW) / 2, y, logoW, logoH);
+          y += logoH + 14;
+        }
+
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(11);
+        doc.setTextColor(80, 80, 80);
+        doc.text(`Financial Solution Plan - Prepared for: ${form.clientName}`, pageWidth / 2, y, { align: "center" });
+        y += 28;
+
+        for (const rawLine of fspText.split("\n")) {
+          const line = rawLine.trim();
+          if (!line) { y += 10; if (y > pageHeight - margin) addPage(); continue; }
+          const isHeading = /^#{1,3}\s/.test(line) || (/^[A-Z0-9 .,:&()\/\-₹]+$/.test(line) && line.length < 70 && line.length > 3);
+          const cleanLine = line.replace(/^#{1,3}\s/, "");
+          if (isHeading) {
+            y += 8;
+            doc.setFont("helvetica", "bold"); doc.setFontSize(12.5); doc.setTextColor(...orange);
+          } else {
+            doc.setFont("helvetica", "normal"); doc.setFontSize(10.5); doc.setTextColor(30, 30, 30);
+          }
+          const lineH = (isHeading ? 12.5 : 10.5) + 6;
+          const wrapped = doc.splitTextToSize(cleanLine, maxWidth);
+          for (const wLine of wrapped) {
+            if (y + lineH > pageHeight - margin) addPage();
+            doc.text(wLine, margin, y);
+            y += lineH;
+          }
+        }
+
+        // Footer on last page
+        doc.setFont("helvetica", "italic"); doc.setFontSize(9); doc.setTextColor(150, 150, 150);
+        doc.text("Prepared by: Viral Bhatt | Founder, Money Mantra | AMFI Registered Mutual Fund Distributor | As featured in CNBC Awaaz & Zee Business", pageWidth / 2, pageHeight - 30, { align: "center", maxWidth: maxWidth });
+
+        pdfBase64 = doc.output("datauristring").split(",")[1];
+      } catch (pdfErr) {
+        console.error("Browser PDF generation failed:", pdfErr);
+        // Continue without PDF — DOCX will still be emailed
+      }
+
+      // Step 3: Send PDF base64 back to server to attach to email
+      if (pdfBase64) {
+        try {
+          await fetch("/api/generate", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ prompt: "__email_pdf_only__", form, pdfBase64, fspText }),
+          });
+        } catch (e) { console.error("PDF email send failed:", e); }
+      }
+
+      setEmailStatus(data.emailStatus || null);
+      setStep(7);
     } catch (e) { setError("Network error. Please try again."); }
     setLoading(false);
   };
 
-  const downloadTxt = () => {
-    const blob = new Blob([generatedFSP], { type: "text/plain" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url; a.download = `FSP_${form.clientName.replace(/\s+/g, "_")}_MoneyMantra.txt`; a.click();
+  const downloadPdf = () => {
+    try {
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF({ unit: "pt", format: "a4" });
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const pageHeight = doc.internal.pageSize.getHeight();
+      const margin = 56;
+      const maxWidth = pageWidth - margin * 2;
+      const orange = [179, 89, 0];
+      let y = margin + 10;
+      const addPage = () => { doc.addPage(); y = margin + 10; };
+
+      const img = document.querySelector("img[alt='Money Mantra']");
+      if (img) { doc.addImage(img, "PNG", (pageWidth - 180) / 2, y, 180, 87); y += 101; }
+
+      doc.setFont("helvetica", "normal"); doc.setFontSize(11); doc.setTextColor(80, 80, 80);
+      doc.text(`Financial Solution Plan - Prepared for: ${form.clientName}`, pageWidth / 2, y, { align: "center" });
+      y += 28;
+
+      for (const rawLine of generatedFSP.split("\n")) {
+        const line = rawLine.trim();
+        if (!line) { y += 10; if (y > pageHeight - margin) addPage(); continue; }
+        const isHeading = /^#{1,3}\s/.test(line) || (/^[A-Z0-9 .,:&()\/\-₹]+$/.test(line) && line.length < 70 && line.length > 3);
+        const cleanLine = line.replace(/^#{1,3}\s/, "");
+        if (isHeading) { y += 8; doc.setFont("helvetica", "bold"); doc.setFontSize(12.5); doc.setTextColor(...orange); }
+        else { doc.setFont("helvetica", "normal"); doc.setFontSize(10.5); doc.setTextColor(30, 30, 30); }
+        const lineH = (isHeading ? 12.5 : 10.5) + 6;
+        for (const wLine of doc.splitTextToSize(cleanLine, maxWidth)) {
+          if (y + lineH > pageHeight - margin) addPage();
+          doc.text(wLine, margin, y); y += lineH;
+        }
+      }
+      doc.setFont("helvetica", "italic"); doc.setFontSize(9); doc.setTextColor(150, 150, 150);
+      doc.text("Prepared by: Viral Bhatt | Founder, Money Mantra | AMFI Registered Mutual Fund Distributor | As featured in CNBC Awaaz & Zee Business", pageWidth / 2, pageHeight - 30, { align: "center", maxWidth });
+      doc.save(`FSP_${form.clientName.replace(/\s+/g, "_")}_MoneyMantra.pdf`);
+    } catch (e) { alert("PDF download failed: " + e.message); }
   };
 
   const reset = () => { setStep(1); setForm(initialForm); setGeneratedFSP(""); setError(""); setEmailStatus(null); };
@@ -274,7 +385,7 @@ Footer: "Prepared by: Viral Bhatt | Founder, Money Mantra | AMFI Registered Mutu
               </div>
               <div style={{ display: "flex", gap: 10 }}>
                 <button onClick={() => navigator.clipboard.writeText(generatedFSP)} style={actionBtn("#333", "#fff")}>📋 Copy</button>
-                <button onClick={downloadTxt} style={actionBtn(DARK_ORANGE, "#fff")}>⬇️ Download .txt</button>
+                <button onClick={downloadPdf} style={actionBtn(DARK_ORANGE, "#fff")}>⬇️ Download PDF</button>
                 <button onClick={reset} style={actionBtn(ORANGE, "#fff")}>🔄 New FSP</button>
               </div>
             </div>
@@ -289,7 +400,7 @@ Footer: "Prepared by: Viral Bhatt | Founder, Money Mantra | AMFI Registered Mutu
               {generatedFSP}
             </div>
             <div style={{ marginTop: 16, padding: "12px 20px", background: "rgba(255,140,0,0.06)", borderRadius: 8, fontFamily: "sans-serif", fontSize: 12, color: "rgba(255,255,255,0.5)", textAlign: "center" }}>
-              💡 The properly formatted PDF and Word versions were emailed to {form.clientEmail}
+              💡 PDF and Word copies emailed to {form.clientEmail}. Use "Download PDF" above for an instant copy.
             </div>
           </div>
         )}
