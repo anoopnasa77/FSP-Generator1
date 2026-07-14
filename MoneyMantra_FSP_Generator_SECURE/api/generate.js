@@ -4,8 +4,20 @@ const LOGO_BASE64 = require("./logo.js");
 
 const ADVISOR_EMAIL = "viralbhatt@moneymantra.info";
 const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || "fsp@moneymantra.info";
-const LOGO_WIDTH = 180;  // pixels, used in DOCX/PDF placement (logo's natural ratio is 360x174)
+const LOGO_WIDTH = 180;
 const LOGO_HEIGHT = 87;
+
+// Sanitize text for pdf-lib (WinAnsi encoding — no Unicode beyond Latin-1)
+const sanitizeForPdf = (str) => str
+  .replace(/₹/g, "Rs.")
+  .replace(/—/g, "-")
+  .replace(/–/g, "-")
+  .replace(/\u2019/g, "'")   // right single quote
+  .replace(/\u2018/g, "'")   // left single quote
+  .replace(/\u201C/g, '"')   // left double quote
+  .replace(/\u201D/g, '"')   // right double quote
+  .replace(/\u2022/g, "*")   // bullet
+  .replace(/[^\x00-\xFF]/g, ""); // strip remaining non-latin (emojis etc.)
 
 // ---------- Build a Word document from the plain-text FSP ----------
 async function buildDocx(fspText, clientName) {
@@ -60,21 +72,17 @@ async function buildDocx(fspText, clientName) {
   return Packer.toBuffer(doc);
 }
 
-// ---------- Build a simple PDF from the plain-text FSP ----------
-// ---------- Build a simple PDF from the plain-text FSP ----------
+// ---------- Build a PDF from the plain-text FSP ----------
 async function buildPdf(fspText, clientName) {
-  const sanitize = (str) => str
-    .replace(/₹/g, "Rs.")
-    .replace(/[^\x00-\xFF]/g, "?");
-
-  fspText = sanitize(fspText);
-  clientName = sanitize(clientName);
+  // Sanitize all text for WinAnsi encoding before rendering
+  fspText = sanitizeForPdf(fspText);
+  clientName = sanitizeForPdf(clientName);
 
   const pdfDoc = await PDFDocument.create();
   const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
   const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
 
-  const pageWidth = 612, pageHeight = 792; // US Letter
+  const pageWidth = 612, pageHeight = 792;
   const margin = 56;
   const maxWidth = pageWidth - margin * 2;
   const orange = rgb(0.7, 0.35, 0);
@@ -106,13 +114,14 @@ async function buildPdf(fspText, clientName) {
     return wrapped;
   };
 
+  // Logo
   const logoBuffer = Buffer.from(LOGO_BASE64, "base64");
   const logoImage = await pdfDoc.embedPng(logoBuffer);
   const logoDims = logoImage.scale(LOGO_WIDTH / logoImage.width);
   const logoX = (pageWidth - logoDims.width) / 2;
   page.drawImage(logoImage, { x: logoX, y: y - logoDims.height, width: logoDims.width, height: logoDims.height });
   y -= logoDims.height + 14;
-  page.drawText(`Financial Solution Plan — Prepared for: ${clientName}`, { x: margin, y, size: 11, font, color: rgb(0.3, 0.3, 0.3) });
+  page.drawText(`Financial Solution Plan - Prepared for: ${clientName}`, { x: margin, y, size: 11, font, color: rgb(0.3, 0.3, 0.3) });
   y -= 28;
 
   const lines = fspText.split("\n");
@@ -120,7 +129,7 @@ async function buildPdf(fspText, clientName) {
     const line = rawLine.trim();
     if (!line) { y -= 10; addPageIfNeeded(10); continue; }
 
-    const isHeading = /^#{1,3}\s/.test(line) || (/^[A-Z0-9 .,:&()/-]+$/.test(line) && line.length < 70 && line.length > 3);
+    const isHeading = /^#{1,3}\s/.test(line) || (/^[A-Z0-9 .,:&()\/\-]+$/.test(line) && line.length < 70 && line.length > 3);
     const cleanLine = line.replace(/^#{1,3}\s/, "");
     const useFont = isHeading ? boldFont : font;
     const size = isHeading ? 12.5 : 10.5;
@@ -174,7 +183,7 @@ module.exports = async function handler(req, res) {
     return res.status(400).json({ error: "Missing client name/email" });
   }
 
-  // 1. Generate the FSP text via Claude
+  // 1. Generate FSP text via Claude
   let fspText;
   try {
     const aiResponse = await fetch("https://api.anthropic.com/v1/messages", {
@@ -210,7 +219,7 @@ module.exports = async function handler(req, res) {
     ]);
   } catch (e) {
     console.error("Document build failed:", e);
-    return res.status(200).json({ fspText, emailStatus: { clientSent: false, error: "Could not build documents" } });
+    return res.status(200).json({ fspText, emailStatus: { clientSent: false, error: "Could not build documents: " + e.message } });
   }
 
   const safeName = form.clientName.replace(/\s+/g, "_");
@@ -219,7 +228,7 @@ module.exports = async function handler(req, res) {
     { filename: `FSP_${safeName}_MoneyMantra.docx`, content: docxBuffer.toString("base64") },
   ];
 
-  // 3. Email client + advisor (best-effort; FSP text still returned even if email fails)
+  // 3. Email client + advisor
   let clientSent = false, advisorSent = false, emailError = null;
 
   if (!process.env.RESEND_API_KEY) {
@@ -229,7 +238,7 @@ module.exports = async function handler(req, res) {
       await sendEmail({
         to: form.clientEmail,
         subject: `Your Financial Solution Plan — Money Mantra`,
-        html: `<p>Dear ${form.clientName},</p><p>Please find attached your personalised Financial Solution Plan (PDF and Word formats), prepared by Money Mantra.</p><p>Warm regards,<br/>Viral Bhatt<br/>CFP | AMFI Registered Mutual Fund Distributor<br/>Money Mantra</p>`,
+        html: `<p>Dear ${form.clientName},</p><p>Please find attached your personalised Financial Solution Plan (PDF and Word formats), prepared by Money Mantra.</p><p>Warm regards,<br/>Viral Bhatt<br/>Founder, Money Mantra<br/>AMFI Registered Mutual Fund Distributor<br/>As featured in CNBC Awaaz &amp; Zee Business</p>`,
         attachments,
       });
       clientSent = true;
