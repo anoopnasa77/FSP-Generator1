@@ -7,17 +7,28 @@ const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || "fsp@moneymantra.info";
 const LOGO_WIDTH = 180;
 const LOGO_HEIGHT = 87;
 
-// Sanitize text for pdf-lib (WinAnsi encoding — no Unicode beyond Latin-1)
-const sanitizeForPdf = (str) => str
-  .replace(/₹/g, "Rs.")
-  .replace(/—/g, "-")
-  .replace(/–/g, "-")
-  .replace(/\u2019/g, "'")   // right single quote
-  .replace(/\u2018/g, "'")   // left single quote
-  .replace(/\u201C/g, '"')   // left double quote
-  .replace(/\u201D/g, '"')   // right double quote
-  .replace(/\u2022/g, "*")   // bullet
-  .replace(/[^\x00-\xFF]/g, ""); // strip remaining non-latin (emojis etc.)
+// Sanitize text for pdf-lib (WinAnsi encoding — Latin-1 only, no Unicode)
+const sanitizeForPdf = (str) => {
+  if (!str) return "";
+  return str
+    .replace(/₹/g, "Rs.")
+    .replace(/—/g, "-")
+    .replace(/–/g, "-")
+    .replace(/\u2019/g, "'")
+    .replace(/\u2018/g, "'")
+    .replace(/\u201C/g, '"')
+    .replace(/\u201D/g, '"')
+    .replace(/\u2022/g, "*")
+    .replace(/\u2026/g, "...")
+    .replace(/\u2713/g, "OK")   // checkmark
+    .replace(/\u2714/g, "OK")
+    .replace(/\u2705/g, "[OK]")  // green checkmark emoji
+    .replace(/\u26a0/g, "[!]")   // warning sign
+    .replace(/\ufe0f/g, "")      // variation selector (emoji modifier)
+    .replace(/\u{1f534}/gu, "[X]") // red circle emoji
+    .replace(/\u{1f7e0}/gu, "[!]") // orange circle
+    .replace(/[^\x20-\x7E\xA0-\xFF]/g, ""); // strip ALL remaining non-latin
+};
 
 // ---------- Build a Word document from the plain-text FSP ----------
 async function buildDocx(fspText, clientName) {
