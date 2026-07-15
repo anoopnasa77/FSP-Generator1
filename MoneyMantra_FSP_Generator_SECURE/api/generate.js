@@ -65,24 +65,51 @@ module.exports = async function handler(req, res) {
 
   if (!form || !form.clientEmail || !form.clientName) return res.status(400).json({ error: "Missing client details" });
 
-  // Second call: attach browser-generated PDF to email
+  // Second call: client browser sends back the PDF — combine with DOCX and send ONE email with both
   if (prompt === "__email_pdf_only__" && pdfBase64) {
     const safeName = form.clientName.replace(/\s+/g, "_");
-    const attachments = [{ filename: `FSP_${safeName}_MoneyMantra.pdf`, content: pdfBase64 }];
+
+    // Build DOCX to attach alongside PDF in one combined email
+    let docxBuffer;
+    try { docxBuffer = await buildDocx(form._fspText || "", form.clientName); } catch (e) { docxBuffer = null; }
+
+    const attachments = [
+      { filename: `FSP_${safeName}_MoneyMantra.pdf`, content: pdfBase64 },
+      ...(docxBuffer ? [{ filename: `FSP_${safeName}_MoneyMantra.docx`, content: docxBuffer.toString("base64") }] : []),
+    ];
+
+    const clientHtml = `<p>Dear ${form.clientName},</p>
+<p>Thank you for using Money Mantra's Financial Solution Plan tool.</p>
+<p>Your personalised Financial Solution Plan is attached in both PDF and Word formats for your reference.</p>
+<p>If you have any questions or would like to discuss your plan in detail, please feel free to reach out.</p>
+<p>Warm regards,<br/>
+<strong>Viral Bhatt</strong><br/>
+Founder, Money Mantra<br/>
+AMFI Registered Mutual Fund Distributor<br/>
+As featured in CNBC Awaaz &amp; Zee Business</p>`;
+
+    const advisorHtml = `<p>New FSP generated for a client.</p>
+<p><strong>Name:</strong> ${form.clientName}<br/>
+<strong>Email:</strong> ${form.clientEmail}<br/>
+<strong>Mobile:</strong> ${form.clientMobile || "-"}<br/>
+<strong>City:</strong> ${form.city || "-"}<br/>
+<strong>Goals:</strong> ${form.goals || "-"}</p>
+<p>PDF and Word attached.</p>`;
+
     try {
       await sendEmail({
         to: form.clientEmail,
-        subject: `Your Financial Solution Plan (PDF) - Money Mantra`,
-        html: `<p>Dear ${form.clientName},</p><p>Please find attached your Financial Solution Plan in PDF format.</p><p>Warm regards,<br/>Viral Bhatt<br/>Founder, Money Mantra<br/>AMFI Registered Mutual Fund Distributor<br/>As featured in CNBC Awaaz &amp; Zee Business</p>`,
+        subject: `Your Financial Solution Plan from Money Mantra`,
+        html: clientHtml,
         attachments,
       });
       await sendEmail({
         to: ADVISOR_EMAIL,
-        subject: `FSP PDF for: ${form.clientName} (${form.clientMobile || "no mobile"})`,
-        html: `<p>PDF copy of FSP for ${form.clientName} (${form.clientEmail}, ${form.clientMobile || "-"}).</p>`,
+        subject: `New FSP: ${form.clientName} - ${form.clientMobile || form.clientEmail}`,
+        html: advisorHtml,
         attachments,
       });
-    } catch (e) { console.error("PDF email failed:", e); }
+    } catch (e) { console.error("Combined email failed:", e); }
     return res.status(200).json({ ok: true });
   }
 
@@ -128,8 +155,8 @@ module.exports = async function handler(req, res) {
     try {
       await sendEmail({
         to: form.clientEmail,
-        subject: `Your Financial Solution Plan - Money Mantra`,
-        html: `<p>Dear ${form.clientName},</p><p>Please find attached your Financial Solution Plan (Word format). A PDF copy will follow shortly.</p><p>Warm regards,<br/>Viral Bhatt<br/>Founder, Money Mantra<br/>AMFI Registered Mutual Fund Distributor<br/>As featured in CNBC Awaaz &amp; Zee Business</p>`,
+        subject: `Your Financial Solution Plan from Money Mantra`,
+        html: `<p>Dear ${form.clientName},</p><p>Your Financial Solution Plan is being prepared. You will receive it with PDF and Word attachments in a moment.</p><p>Warm regards,<br/><strong>Viral Bhatt</strong><br/>Founder, Money Mantra<br/>AMFI Registered Mutual Fund Distributor<br/>As featured in CNBC Awaaz &amp; Zee Business</p>`,
         attachments,
       });
       clientSent = true;
