@@ -6,7 +6,6 @@ const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || "fsp@moneymantra.info";
 const LOGO_WIDTH = 180;
 const LOGO_HEIGHT = 87;
 
-// ---------- Build Word document ----------
 async function buildDocx(fspText, clientName) {
   const lines = fspText.split("\n");
   const logoBuffer = Buffer.from(LOGO_BASE64, "base64");
@@ -18,7 +17,7 @@ async function buildDocx(fspText, clientName) {
     }),
     new Paragraph({
       alignment: AlignmentType.CENTER,
-      children: [new TextRun({ text: `Financial Solution Plan — Prepared for: ${clientName}`, size: 24, color: "555555" })],
+      children: [new TextRun({ text: `Financial Solution Plan - Prepared for: ${clientName}`, size: 24, color: "555555" })],
       spacing: { after: 360 },
     }),
   ];
@@ -48,7 +47,6 @@ async function buildDocx(fspText, clientName) {
   return Packer.toBuffer(doc);
 }
 
-// ---------- Send email ----------
 async function sendEmail({ to, subject, html, attachments }) {
   const response = await fetch("https://api.resend.com/emails", {
     method: "POST",
@@ -65,31 +63,32 @@ module.exports = async function handler(req, res) {
 
   const { prompt, form, pdfBase64 } = req.body;
 
-  if (!prompt || typeof prompt !== "string") return res.status(400).json({ error: "Missing prompt" });
   if (!form || !form.clientEmail || !form.clientName) return res.status(400).json({ error: "Missing client details" });
 
-  // Special case: client is sending back the browser-generated PDF for emailing
-  if (prompt === "__email_pdf_only__" && pdfBase64 && form?.fspText !== undefined) {
+  // Second call: attach browser-generated PDF to email
+  if (prompt === "__email_pdf_only__" && pdfBase64) {
     const safeName = form.clientName.replace(/\s+/g, "_");
     const attachments = [{ filename: `FSP_${safeName}_MoneyMantra.pdf`, content: pdfBase64 }];
     try {
       await sendEmail({
         to: form.clientEmail,
-        subject: `Your Financial Solution Plan (PDF) — Money Mantra`,
+        subject: `Your Financial Solution Plan (PDF) - Money Mantra`,
         html: `<p>Dear ${form.clientName},</p><p>Please find attached your Financial Solution Plan in PDF format.</p><p>Warm regards,<br/>Viral Bhatt<br/>Founder, Money Mantra<br/>AMFI Registered Mutual Fund Distributor<br/>As featured in CNBC Awaaz &amp; Zee Business</p>`,
         attachments,
       });
       await sendEmail({
         to: ADVISOR_EMAIL,
-        subject: `FSP PDF for: ${form.clientName}`,
-        html: `<p>PDF copy of FSP for ${form.clientName} (${form.clientEmail}).</p>`,
+        subject: `FSP PDF for: ${form.clientName} (${form.clientMobile || "no mobile"})`,
+        html: `<p>PDF copy of FSP for ${form.clientName} (${form.clientEmail}, ${form.clientMobile || "-"}).</p>`,
         attachments,
       });
     } catch (e) { console.error("PDF email failed:", e); }
     return res.status(200).json({ ok: true });
   }
 
-  // 1. Generate FSP text via Claude
+  if (!prompt || typeof prompt !== "string") return res.status(400).json({ error: "Missing prompt" });
+
+  // Step 1: Generate FSP text via Claude
   let fspText;
   try {
     const aiResponse = await fetch("https://api.anthropic.com/v1/messages", {
@@ -108,7 +107,7 @@ module.exports = async function handler(req, res) {
     return res.status(500).json({ error: "Network error reaching AI service" });
   }
 
-  // 2. Build DOCX only (PDF is generated client-side in the browser to avoid encoding issues)
+  // Step 2: Build DOCX
   let docxBuffer;
   try {
     docxBuffer = await buildDocx(fspText, form.clientName);
@@ -117,14 +116,9 @@ module.exports = async function handler(req, res) {
     return res.status(200).json({ fspText, emailStatus: { clientSent: false, error: "Could not build Word document: " + e.message } });
   }
 
-  // 3. Email — attach DOCX always; attach PDF if client sent it
+  // Step 3: Email DOCX (PDF will follow in second call from browser)
   const safeName = form.clientName.replace(/\s+/g, "_");
-  const attachments = [
-    { filename: `FSP_${safeName}_MoneyMantra.docx`, content: docxBuffer.toString("base64") },
-  ];
-  if (pdfBase64) {
-    attachments.unshift({ filename: `FSP_${safeName}_MoneyMantra.pdf`, content: pdfBase64 });
-  }
+  const attachments = [{ filename: `FSP_${safeName}_MoneyMantra.docx`, content: docxBuffer.toString("base64") }];
 
   let clientSent = false, advisorSent = false, emailError = null;
 
@@ -134,8 +128,8 @@ module.exports = async function handler(req, res) {
     try {
       await sendEmail({
         to: form.clientEmail,
-        subject: `Your Financial Solution Plan — Money Mantra`,
-        html: `<p>Dear ${form.clientName},</p><p>Please find attached your personalised Financial Solution Plan${pdfBase64 ? " (PDF and Word formats)" : " (Word format)"}, prepared by Money Mantra.</p><p>Warm regards,<br/>Viral Bhatt<br/>Founder, Money Mantra<br/>AMFI Registered Mutual Fund Distributor<br/>As featured in CNBC Awaaz &amp; Zee Business</p>`,
+        subject: `Your Financial Solution Plan - Money Mantra`,
+        html: `<p>Dear ${form.clientName},</p><p>Please find attached your Financial Solution Plan (Word format). A PDF copy will follow shortly.</p><p>Warm regards,<br/>Viral Bhatt<br/>Founder, Money Mantra<br/>AMFI Registered Mutual Fund Distributor<br/>As featured in CNBC Awaaz &amp; Zee Business</p>`,
         attachments,
       });
       clientSent = true;
