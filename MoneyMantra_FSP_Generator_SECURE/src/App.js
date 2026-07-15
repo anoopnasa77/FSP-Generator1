@@ -366,10 +366,10 @@ Footer: "Prepared by: Viral Bhatt | Founder, Money Mantra | AMFI Registered Mutu
             if (y > H - 60) { newPage(); drawRect(0, 0, W, 40, 0, darkBg); label(`Financial Solution Plan — ${form.clientName}`, ML, 25, 11, white, "bold"); y = 60; }
             const wLines = doc.splitTextToSize(cleanLine, CW);
             doc.setFont("helvetica", "normal"); doc.setFontSize(9.5); doc.setTextColor(40, 40, 40);
-            wLines.forEach(wl => {
+            for (let wi = 0; wi < wLines.length; wi++) {
               if (y > H - 60) { newPage(); drawRect(0, 0, W, 40, 0, darkBg); label(`Financial Solution Plan — ${form.clientName}`, ML, 25, 11, white, "bold"); y = 60; }
-              doc.text(wl, ML, y); y += lineH;
-            });
+              doc.text(wLines[wi], ML, y); y += lineH;
+            }
           }
         }
 
