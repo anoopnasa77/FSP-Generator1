@@ -143,44 +143,9 @@ As featured in CNBC Awaaz &amp; Zee Business</p>`;
     return res.status(200).json({ fspText, emailStatus: { clientSent: false, error: "Could not build Word document: " + e.message } });
   }
 
-  // Step 3: Email DOCX (PDF will follow in second call from browser)
-  const safeName = form.clientName.replace(/\s+/g, "_");
-  const attachments = [{ filename: `FSP_${safeName}_MoneyMantra.docx`, content: docxBuffer.toString("base64") }];
-
-  let clientSent = false, advisorSent = false, emailError = null;
-
-  if (!process.env.RESEND_API_KEY) {
-    emailError = "Email not configured (missing RESEND_API_KEY)";
-  } else {
-    try {
-      await sendEmail({
-        to: form.clientEmail,
-        subject: `Your Financial Solution Plan from Money Mantra`,
-        html: `<p>Dear ${form.clientName},</p><p>Your Financial Solution Plan is being prepared. You will receive it with PDF and Word attachments in a moment.</p><p>Warm regards,<br/><strong>Viral Bhatt</strong><br/>Founder, Money Mantra<br/>AMFI Registered Mutual Fund Distributor<br/>As featured in CNBC Awaaz &amp; Zee Business</p>`,
-        attachments,
-      });
-      clientSent = true;
-    } catch (e) {
-      console.error("Client email failed:", e);
-      emailError = e.message;
-    }
-
-    try {
-      await sendEmail({
-        to: ADVISOR_EMAIL,
-        subject: `New FSP Lead: ${form.clientName} (${form.clientMobile || "no mobile"})`,
-        html: `<p>New FSP generated.</p><p><b>Name:</b> ${form.clientName}<br/><b>Email:</b> ${form.clientEmail}<br/><b>Mobile:</b> ${form.clientMobile || "-"}<br/><b>City:</b> ${form.city || "-"}<br/><b>Goals:</b> ${form.goals || "-"}</p>`,
-        attachments,
-      });
-      advisorSent = true;
-    } catch (e) {
-      console.error("Advisor email failed:", e);
-      if (!emailError) emailError = e.message;
-    }
-  }
-
+  // Don't send any email yet — wait for browser to generate PDF and send everything together in second call
   return res.status(200).json({
     fspText,
-    emailStatus: { clientSent, advisorSent, error: clientSent ? null : emailError },
+    emailStatus: { clientSent: false, advisorSent: false, pending: true },
   });
 };
