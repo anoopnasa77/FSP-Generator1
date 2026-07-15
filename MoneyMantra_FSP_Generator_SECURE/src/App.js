@@ -149,46 +149,245 @@ Footer: "Prepared by: Viral Bhatt | Founder, Money Mantra | AMFI Registered Mutu
       const fspText = data.fspText;
       setGeneratedFSP(fspText);
 
-      // Step 2: Generate PDF in browser (full Unicode — handles ₹ and all symbols)
+      // Step 2: Generate designed visual PDF in browser
       let pdfBase64 = null;
       try {
         const { jsPDF } = window.jspdf;
         const doc = new jsPDF({ unit: "pt", format: "a4" });
-        const pageWidth = doc.internal.pageSize.getWidth();
-        const pageHeight = doc.internal.pageSize.getHeight();
-        const margin = 56;
-        const maxWidth = pageWidth - margin * 2;
-        const orange = [179, 89, 0];
-        let y = margin + 10;
-        const addPage = () => { doc.addPage(); y = margin + 10; };
+        const W = doc.internal.pageSize.getWidth();
+        const H = doc.internal.pageSize.getHeight();
+        const ML = 48, MR = 48, MT = 40;
+        const CW = W - ML - MR;
+        const orange = [255, 140, 0];
+        const darkOrange = [179, 89, 0];
+        const darkBg = [26, 10, 0];
+        const white = [255, 255, 255];
+        const lightOrange = [255, 243, 220];
+        const green = [46, 125, 50];
+        const lightGreen = [232, 245, 233];
+        const blue = [21, 101, 192];
+        const lightBlue = [227, 242, 253];
+        const gray = [100, 100, 100];
+
+        // Helpers
+        const fmt = (n) => n ? `₹${parseFloat(n).toLocaleString("en-IN")}` : "₹0";
+        const newPage = () => { doc.addPage(); };
+
+        const drawRect = (x, y, w, h, r, fillColor) => {
+          doc.setFillColor(...fillColor);
+          doc.roundedRect(x, y, w, h, r, r, "F");
+        };
+        const label = (text, x, y, size, color, style = "normal", align = "left") => {
+          doc.setFont("helvetica", style); doc.setFontSize(size); doc.setTextColor(...color);
+          doc.text(text, x, y, { align });
+        };
+        const wrapped = (text, x, y, maxW, size, color, lineH) => {
+          doc.setFontSize(size); doc.setTextColor(...color);
+          const lines = doc.splitTextToSize(text, maxW);
+          lines.forEach((l, i) => doc.text(l, x, y + i * lineH));
+          return y + lines.length * lineH;
+        };
+
+        // ── PAGE 1: COVER ─────────────────────────────────────────────
+        // Dark header band
+        drawRect(0, 0, W, 180, 0, darkBg);
 
         // Logo
         const img = new Image();
-        await new Promise((resolve) => { img.onload = resolve; img.onerror = resolve; img.src = "/logo.png"; });
-        if (img.complete && img.naturalWidth > 0) {
-          doc.addImage(img, "PNG", (pageWidth - 180) / 2, y, 180, 87);
-          y += 101;
-        }
+        await new Promise((r) => { img.onload = r; img.onerror = r; img.src = "/logo.png"; });
+        if (img.complete && img.naturalWidth > 0) doc.addImage(img, "PNG", ML, 18, 150, 73);
 
-        doc.setFont("helvetica", "normal"); doc.setFontSize(11); doc.setTextColor(80, 80, 80);
-        doc.text(`Financial Solution Plan - Prepared for: ${form.clientName}`, pageWidth / 2, y, { align: "center" });
-        y += 28;
+        // Title
+        label("FINANCIAL SOLUTION PLAN", W - MR, 55, 20, white, "bold", "right");
+        label("Personalised Roadmap to Financial Freedom", W - MR, 76, 10, [255, 200, 100], "normal", "right");
 
-        for (const rawLine of fspText.split("\n")) {
+        // Client name band
+        drawRect(0, 150, W, 50, 0, orange);
+        const clientLabel = `${form.clientName}${form.spouseName ? " & " + form.spouseName : ""}  |  Age ${form.clientAge}${form.spouseAge ? " & " + form.spouseAge : ""}  |  ${form.city || ""}`;
+        label(clientLabel, W / 2, 181, 13, darkBg, "bold", "center");
+
+        // Date & prepared by
+        const today = new Date().toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" });
+        label(`Prepared on: ${today}`, ML, 220, 9, gray);
+        label("Prepared by: Viral Bhatt | Money Mantra | AMFI Registered Mutual Fund Distributor | As featured in CNBC Awaaz & Zee Business", ML, 234, 8, gray);
+
+        // ── SECTION A: PRESENT SITUATION ──────────────────────────────
+        let y = 258;
+        drawRect(ML, y, CW, 24, 4, darkOrange);
+        label("SECTION 1 — YOUR PRESENT SITUATION", ML + 12, y + 16, 11, white, "bold");
+        y += 36;
+
+        const totalIncome = (parseFloat(form.monthlyIncome) || 0) + (parseFloat(form.spouseIncome) || 0);
+        const totalEMI = (parseFloat(form.homeLoanEMI) || 0) + (parseFloat(form.personalLoanEMI) || 0) + (parseFloat(form.carLoanEMI) || 0);
+        const surplus = totalIncome - (parseFloat(form.monthlyExpenses) || 0) - totalEMI;
+        const totalAssets = (parseFloat(form.bankBalance) || 0) + (parseFloat(form.mutualFunds) || 0) + (parseFloat(form.ppfEpf) || 0) + (parseFloat(form.gold) || 0) + (parseFloat(form.property) || 0);
+        const totalLoans = (parseFloat(form.homeLoan) || 0) + (parseFloat(form.personalLoan) || 0) + (parseFloat(form.carLoan) || 0);
+        const netWorth = totalAssets - totalLoans;
+        const savingsRate = totalIncome > 0 ? Math.round((parseFloat(form.monthlySavings) || 0) / totalIncome * 100) : 0;
+        const debtRatio = totalIncome > 0 ? Math.round(totalEMI / totalIncome * 100) : 0;
+
+        // Cash flow row — 3 boxes
+        const bw = (CW - 16) / 3;
+        const cashBoxes = [
+          { label: "Monthly Income", val: fmt(totalIncome), color: lightGreen, border: green },
+          { label: "Monthly Expenses + EMI", val: fmt((parseFloat(form.monthlyExpenses) || 0) + totalEMI), color: [255, 235, 238], border: [198, 40, 40] },
+          { label: "Monthly Surplus", val: fmt(surplus), color: lightOrange, border: darkOrange },
+        ];
+        cashBoxes.forEach((b, i) => {
+          const bx = ML + i * (bw + 8);
+          drawRect(bx, y, bw, 52, 5, b.color);
+          doc.setDrawColor(...b.border); doc.setLineWidth(1.5);
+          doc.roundedRect(bx, y, bw, 52, 5, 5, "S");
+          label(b.label, bx + bw / 2, y + 14, 8, gray, "normal", "center");
+          label(b.val, bx + bw / 2, y + 34, 13, b.border, "bold", "center");
+        });
+        y += 64;
+
+        // Net Worth + key ratios row
+        const nwBoxes = [
+          { label: "Total Assets", val: fmt(totalAssets), color: lightBlue, border: blue },
+          { label: "Total Liabilities", val: fmt(totalLoans), color: [255, 235, 238], border: [198, 40, 40] },
+          { label: "Net Worth", val: fmt(netWorth), color: netWorth >= 0 ? lightGreen : [255, 235, 238], border: netWorth >= 0 ? green : [198, 40, 40] },
+        ];
+        nwBoxes.forEach((b, i) => {
+          const bx = ML + i * (bw + 8);
+          drawRect(bx, y, bw, 52, 5, b.color);
+          doc.setDrawColor(...b.border); doc.setLineWidth(1.5);
+          doc.roundedRect(bx, y, bw, 52, 5, 5, "S");
+          label(b.label, bx + bw / 2, y + 14, 8, gray, "normal", "center");
+          label(b.val, bx + bw / 2, y + 34, 13, b.border, "bold", "center");
+        });
+        y += 64;
+
+        // Key ratios as pills
+        const ratios = [
+          { name: "Savings Rate", val: `${savingsRate}%`, good: savingsRate >= 20, tip: savingsRate >= 20 ? "Healthy" : "Needs Improvement" },
+          { name: "Debt-to-Income", val: `${debtRatio}%`, good: debtRatio <= 40, tip: debtRatio <= 40 ? "Manageable" : "High — Reduce Debt" },
+          { name: "Risk Profile", val: form.riskProfile, good: true, tip: "As assessed" },
+          { name: "Retirement Age", val: form.retirementAge || "60", good: true, tip: "Target" },
+        ];
+        const pw = (CW - 24) / 4;
+        ratios.forEach((r, i) => {
+          const px = ML + i * (pw + 8);
+          drawRect(px, y, pw, 46, 5, r.good ? lightGreen : [255, 235, 238]);
+          label(r.name, px + pw / 2, y + 12, 7.5, gray, "normal", "center");
+          label(r.val, px + pw / 2, y + 27, 11, r.good ? green : [198, 40, 40], "bold", "center");
+          label(r.tip, px + pw / 2, y + 40, 7, r.good ? green : [198, 40, 40], "normal", "center");
+        });
+        y += 60;
+
+        // Asset breakdown mini table
+        drawRect(ML, y, CW, 18, 3, [245, 245, 245]);
+        label("ASSET BREAKDOWN", ML + 8, y + 12, 8, darkOrange, "bold");
+        y += 22;
+        const assets = [
+          ["Bank / Liquid", fmt(form.bankBalance)],
+          ["Mutual Funds", fmt(form.mutualFunds)],
+          ["PPF / EPF", fmt(form.ppfEpf)],
+          ["Gold", fmt(form.gold)],
+          ["Property", fmt(form.property)],
+        ];
+        const aw = CW / assets.length;
+        assets.forEach(([aLabel, aVal], i) => {
+          const ax = ML + i * aw;
+          if (i % 2 === 0) drawRect(ax, y, aw, 32, 0, [250, 250, 250]);
+          label(aLabel, ax + aw / 2, y + 12, 7.5, gray, "normal", "center");
+          label(aVal, ax + aw / 2, y + 26, 9, [30, 30, 30], "bold", "center");
+        });
+        y += 44;
+
+        // ── SECTION B: YOUR GOALS ─────────────────────────────────────
+        drawRect(ML, y, CW, 24, 4, [21, 101, 192]);
+        label("SECTION 2 — YOUR GOALS", ML + 12, y + 16, 11, white, "bold");
+        y += 36;
+
+        // Goals visual
+        drawRect(ML, y, CW, 60, 6, lightBlue);
+        doc.setDrawColor(...blue); doc.setLineWidth(1);
+        doc.roundedRect(ML, y, CW, 60, 6, 6, "S");
+        label("Your stated goals:", ML + 12, y + 16, 9, blue, "bold");
+        const goalLines = doc.splitTextToSize(form.goals || "Not specified", CW - 24);
+        goalLines.slice(0, 3).forEach((gl, gi) => label(gl, ML + 12, y + 30 + gi * 12, 9, [30, 30, 30]));
+        y += 74;
+
+        // Journey visual: Present → Journey → Destination
+        drawRect(ML, y, CW, 56, 6, lightOrange);
+        const jw = CW / 3;
+        // Present box
+        drawRect(ML + 4, y + 6, jw - 8, 44, 5, white);
+        label("WHERE YOU ARE", ML + 4 + (jw - 8) / 2, y + 20, 7.5, gray, "bold", "center");
+        label(`Net Worth: ${fmt(netWorth)}`, ML + 4 + (jw - 8) / 2, y + 34, 8, darkOrange, "bold", "center");
+        label(`Savings: ${fmt(form.monthlySavings)}/mo`, ML + 4 + (jw - 8) / 2, y + 46, 7.5, gray, "normal", "center");
+        // Arrow
+        label("→", ML + jw + jw / 2, y + 34, 22, orange, "bold", "center");
+        // Destination box
+        drawRect(ML + jw * 2 + 4, y + 6, jw - 8, 44, 5, white);
+        label("WHERE YOU WANT TO BE", ML + jw * 2 + 4 + (jw - 8) / 2, y + 20, 7.5, gray, "bold", "center");
+        label(`Retire at ${form.retirementAge || 60}`, ML + jw * 2 + 4 + (jw - 8) / 2, y + 34, 9, green, "bold", "center");
+        label("Financial Freedom", ML + jw * 2 + 4 + (jw - 8) / 2, y + 46, 7.5, gray, "normal", "center");
+        y += 70;
+
+        // ── PAGE 2: DETAILED PLAN ──────────────────────────────────────
+        newPage();
+        drawRect(0, 0, W, 40, 0, darkBg);
+        label(`Financial Solution Plan — ${form.clientName}`, ML, 25, 11, white, "bold");
+        label("Detailed Analysis & Recommendations", W - MR, 25, 9, [255, 200, 100], "normal", "right");
+        y = 60;
+
+        // Section 3 header
+        drawRect(ML, y, CW, 24, 4, green);
+        label("SECTION 3 — YOUR ROADMAP & RECOMMENDATIONS", ML + 12, y + 16, 11, white, "bold");
+        y += 36;
+
+        // Render FSP text cleanly
+        doc.setFont("helvetica", "normal");
+        const fspLines = fspText.split("\n");
+        for (const rawLine of fspLines) {
           const line = rawLine.trim();
-          if (!line) { y += 10; if (y > pageHeight - margin) addPage(); continue; }
-          const isHeading = /^#{1,3}\s/.test(line) || (/^[A-Z0-9 .,:&()/-]+$/.test(line) && line.length < 70 && line.length > 3);
-          const cleanLine = line.replace(/^#{1,3}\s/, "");
-          if (isHeading) { y += 8; doc.setFont("helvetica", "bold"); doc.setFontSize(12.5); doc.setTextColor(...orange); }
-          else { doc.setFont("helvetica", "normal"); doc.setFontSize(10.5); doc.setTextColor(30, 30, 30); }
-          const lineH = (isHeading ? 12.5 : 10.5) + 6;
-          for (const wLine of doc.splitTextToSize(cleanLine, maxWidth)) {
-            if (y + lineH > pageHeight - margin) addPage();
-            doc.text(wLine, margin, y); y += lineH;
+          if (!line) { y += 6; if (y > H - 60) { newPage(); drawRect(0, 0, W, 40, 0, darkBg); label(`Financial Solution Plan — ${form.clientName}`, ML, 25, 11, white, "bold"); y = 60; } continue; }
+          const isH1 = /^#\s/.test(line);
+          const isH2 = /^##\s/.test(line);
+          const isH3 = /^###\s/.test(line);
+          const cleanLine = line.replace(/^#{1,3}\s/, "").replace(/\*\*/g, "");
+
+          if (isH1) {
+            y += 8;
+            if (y > H - 80) { newPage(); drawRect(0, 0, W, 40, 0, darkBg); label(`Financial Solution Plan — ${form.clientName}`, ML, 25, 11, white, "bold"); y = 60; }
+            drawRect(ML, y - 12, CW, 22, 3, darkOrange);
+            label(cleanLine, ML + 10, y + 4, 10, white, "bold");
+            y += 18;
+          } else if (isH2) {
+            y += 6;
+            if (y > H - 60) { newPage(); drawRect(0, 0, W, 40, 0, darkBg); label(`Financial Solution Plan — ${form.clientName}`, ML, 25, 11, white, "bold"); y = 60; }
+            label(cleanLine, ML, y, 10, darkOrange, "bold");
+            doc.setDrawColor(...orange); doc.setLineWidth(0.5);
+            doc.line(ML, y + 3, ML + CW, y + 3);
+            y += 14;
+          } else if (isH3) {
+            y += 4;
+            label(cleanLine, ML, y, 9.5, [50, 50, 50], "bold");
+            y += 13;
+          } else {
+            const lineH = 13;
+            if (y > H - 60) { newPage(); drawRect(0, 0, W, 40, 0, darkBg); label(`Financial Solution Plan — ${form.clientName}`, ML, 25, 11, white, "bold"); y = 60; }
+            const wLines = doc.splitTextToSize(cleanLine, CW);
+            doc.setFont("helvetica", "normal"); doc.setFontSize(9.5); doc.setTextColor(40, 40, 40);
+            wLines.forEach(wl => {
+              if (y > H - 60) { newPage(); drawRect(0, 0, W, 40, 0, darkBg); label(`Financial Solution Plan — ${form.clientName}`, ML, 25, 11, white, "bold"); y = 60; }
+              doc.text(wl, ML, y); y += lineH;
+            });
           }
         }
-        doc.setFont("helvetica", "italic"); doc.setFontSize(9); doc.setTextColor(150, 150, 150);
-        doc.text("Prepared by: Viral Bhatt | Founder, Money Mantra | AMFI Registered Mutual Fund Distributor | As featured in CNBC Awaaz & Zee Business", pageWidth / 2, pageHeight - 30, { align: "center", maxWidth });
+
+        // Footer on every page
+        const totalPages = doc.internal.pages.length - 1;
+        for (let p = 1; p <= totalPages; p++) {
+          doc.setPage(p);
+          drawRect(0, H - 28, W, 28, 0, darkBg);
+          label("Prepared by: Viral Bhatt | Money Mantra | AMFI Registered Mutual Fund Distributor | As featured in CNBC Awaaz & Zee Business", W / 2, H - 10, 7, [200, 200, 200], "normal", "center");
+          label(`Page ${p} of ${totalPages}`, W - MR, H - 10, 7, orange, "normal", "right");
+        }
+
         pdfBase64 = doc.output("datauristring").split(",")[1];
       } catch (pdfErr) {
         console.error("Browser PDF generation failed:", pdfErr);
