@@ -76,10 +76,6 @@ function SummaryRow({ label, value }) {
   );
 }
 
-function actionBtn(bg, color) {
-  return { padding: "9px 18px", background: bg, border: "none", borderRadius: 8, color, fontFamily: "sans-serif", fontSize: 13, cursor: "pointer", fontWeight: 500 };
-}
-
 export default function App() {
   const [step, setStep] = window.React.useState(1);
   const [form, setForm] = window.React.useState(initialForm);
