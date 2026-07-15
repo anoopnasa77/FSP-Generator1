@@ -189,7 +189,7 @@ Footer: "Prepared by: Viral Bhatt | Founder, Money Mantra | AMFI Registered Mutu
         for (const rawLine of fspText.split("\n")) {
           const line = rawLine.trim();
           if (!line) { y += 10; if (y > pageHeight - margin) addPage(); continue; }
-          const isHeading = /^#{1,3}\s/.test(line) || (/^[A-Z0-9 .,:&()\/\-₹]+$/.test(line) && line.length < 70 && line.length > 3);
+          const isHeading = /^#{1,3}\s/.test(line) || (/^[A-Z0-9 .,:&()/-]+$/.test(line) && line.length < 70 && line.length > 3);
           const cleanLine = line.replace(/^#{1,3}\s/, "");
           if (isHeading) {
             y += 8;
@@ -255,7 +255,7 @@ Footer: "Prepared by: Viral Bhatt | Founder, Money Mantra | AMFI Registered Mutu
       for (const rawLine of generatedFSP.split("\n")) {
         const line = rawLine.trim();
         if (!line) { y += 10; if (y > pageHeight - margin) addPage(); continue; }
-        const isHeading = /^#{1,3}\s/.test(line) || (/^[A-Z0-9 .,:&()\/\-₹]+$/.test(line) && line.length < 70 && line.length > 3);
+        const isHeading = /^#{1,3}\s/.test(line) || (/^[A-Z0-9 .,:&()/-]+$/.test(line) && line.length < 70 && line.length > 3);
         const cleanLine = line.replace(/^#{1,3}\s/, "");
         if (isHeading) { y += 8; doc.setFont("helvetica", "bold"); doc.setFontSize(12.5); doc.setTextColor(...orange); }
         else { doc.setFont("helvetica", "normal"); doc.setFontSize(10.5); doc.setTextColor(30, 30, 30); }
