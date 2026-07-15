@@ -156,7 +156,7 @@ Footer: "Prepared by: Viral Bhatt | Founder, Money Mantra | AMFI Registered Mutu
         const doc = new jsPDF({ unit: "pt", format: "a4" });
         const W = doc.internal.pageSize.getWidth();
         const H = doc.internal.pageSize.getHeight();
-        const ML = 48, MR = 48, MT = 40;
+        const ML = 48, MR = 48;
         const CW = W - ML - MR;
         const orange = [255, 140, 0];
         const darkOrange = [179, 89, 0];
@@ -180,12 +180,6 @@ Footer: "Prepared by: Viral Bhatt | Founder, Money Mantra | AMFI Registered Mutu
         const label = (text, x, y, size, color, style = "normal", align = "left") => {
           doc.setFont("helvetica", style); doc.setFontSize(size); doc.setTextColor(...color);
           doc.text(text, x, y, { align });
-        };
-        const wrapped = (text, x, y, maxW, size, color, lineH) => {
-          doc.setFontSize(size); doc.setTextColor(...color);
-          const lines = doc.splitTextToSize(text, maxW);
-          lines.forEach((l, i) => doc.text(l, x, y + i * lineH));
-          return y + lines.length * lineH;
         };
 
         // ── PAGE 1: COVER ─────────────────────────────────────────────
@@ -381,12 +375,12 @@ Footer: "Prepared by: Viral Bhatt | Founder, Money Mantra | AMFI Registered Mutu
 
         // Footer on every page
         const totalPages = doc.internal.pages.length - 1;
-        for (let p = 1; p <= totalPages; p++) {
+        Array.from({ length: totalPages }, (_, i) => i + 1).forEach((p) => {
           doc.setPage(p);
           drawRect(0, H - 28, W, 28, 0, darkBg);
           label("Prepared by: Viral Bhatt | Money Mantra | AMFI Registered Mutual Fund Distributor | As featured in CNBC Awaaz & Zee Business", W / 2, H - 10, 7, [200, 200, 200], "normal", "center");
           label(`Page ${p} of ${totalPages}`, W - MR, H - 10, 7, orange, "normal", "right");
-        }
+        });
 
         pdfBase64 = doc.output("datauristring").split(",")[1];
       } catch (pdfErr) {
