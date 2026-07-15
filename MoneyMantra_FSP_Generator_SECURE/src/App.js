@@ -330,30 +330,20 @@ Footer: "Prepared by: Viral Bhatt | Founder, Money Mantra | AMFI Registered Mutu
           </FormCard>
         )}
         {step === 7 && generatedFSP && (
-          <div>
-            <div style={{ background: "rgba(255,140,0,0.1)", border: `2px solid ${ORANGE}`, borderRadius: 12, padding: "16px 24px", marginBottom: 20, display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
-              <div>
-                <div style={{ fontSize: 18, fontWeight: "bold", color: ORANGE }}>✅ FSP Generated!</div>
-                <div style={{ fontSize: 13, opacity: 0.7, fontFamily: "sans-serif" }}>Financial Solution Plan for {form.clientName}</div>
-              </div>
-              <div style={{ display: "flex", gap: 10 }}>
-                <button onClick={() => navigator.clipboard.writeText(generatedFSP)} style={actionBtn("#333", "#fff")}>📋 Copy</button>
-                <button onClick={reset} style={actionBtn(ORANGE, "#fff")}>🔄 New FSP</button>
-              </div>
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "60vh", textAlign: "center", padding: "40px 24px" }}>
+            <div style={{ fontSize: 64, marginBottom: 24 }}>✅</div>
+            <div style={{ fontSize: 28, fontWeight: "bold", color: ORANGE, marginBottom: 12 }}>FSP Generated Successfully!</div>
+            <div style={{ fontSize: 16, opacity: 0.8, fontFamily: "sans-serif", marginBottom: 32 }}>
+              Financial Solution Plan for <strong>{form.clientName}</strong> is ready.
             </div>
-            {emailStatus && (
-              <div style={{ background: emailStatus.clientSent ? "rgba(76,175,80,0.1)" : "#ff000022", border: `1px solid ${emailStatus.clientSent ? "#4CAF50" : "#ff4444"}`, borderRadius: 10, padding: "12px 18px", marginBottom: 20, fontFamily: "sans-serif", fontSize: 13.5 }}>
-                {emailStatus.clientSent
-                  ? `Email sent to ${form.clientEmail} — Word attached${emailStatus.pdfSent ? " + PDF attached." : ". PDF sending shortly."}`
-                  : `Could not send email (${emailStatus.error || "unknown error"}). Please try again.`}
-              </div>
-            )}
-            <div style={{ background: "rgba(255,255,255,0.03)", border: `1px solid ${ORANGE}33`, borderRadius: 12, padding: "28px 32px", fontFamily: "sans-serif", fontSize: 13.5, lineHeight: 1.7, color: "#e8e8e8", whiteSpace: "pre-wrap", maxHeight: "70vh", overflowY: "auto" }}>
-              {generatedFSP}
+            <div style={{ background: "rgba(76,175,80,0.12)", border: "1px solid #4CAF50", borderRadius: 12, padding: "20px 32px", marginBottom: 32, fontFamily: "sans-serif", fontSize: 15, maxWidth: 480 }}>
+              {emailStatus?.clientSent
+                ? <>📧 PDF &amp; Word copies have been emailed to<br /><strong>{form.clientEmail}</strong></>
+                : <>⚠️ Could not send email ({emailStatus?.error || "unknown error"}).<br />Please try again.</>}
             </div>
-            <div style={{ marginTop: 16, padding: "12px 20px", background: "rgba(255,140,0,0.06)", borderRadius: 8, fontFamily: "sans-serif", fontSize: 12, color: "rgba(255,255,255,0.5)", textAlign: "center" }}>
-              💡 PDF and Word copies have been emailed to {form.clientEmail}.
-            </div>
+            <button onClick={reset} style={{ padding: "14px 40px", background: `linear-gradient(90deg, ${DARK_ORANGE}, ${ORANGE})`, border: "none", borderRadius: 10, color: "#fff", fontFamily: "sans-serif", fontSize: 16, fontWeight: "bold", cursor: "pointer" }}>
+              🔄 Generate Another FSP
+            </button>
           </div>
         )}
       </div>
