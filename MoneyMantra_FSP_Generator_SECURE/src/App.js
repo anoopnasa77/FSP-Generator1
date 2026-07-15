@@ -202,11 +202,10 @@ Footer: "Prepared by: Viral Bhatt | Founder, Money Mantra | AMFI Registered Mutu
       let pdfEmailSent = false;
       if (pdfBase64) {
         try {
-          const safeName = form.clientName.replace(/\s+/g, "_");
           const pdfRes = await fetch("/api/generate", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ prompt: "__email_pdf_only__", form, pdfBase64 }),
+            body: JSON.stringify({ prompt: "__email_pdf_only__", form: { ...form, _fspText: fspText }, pdfBase64 }),
           });
           if (pdfRes.ok) pdfEmailSent = true;
         } catch (e) { console.error("PDF email send failed:", e); }
