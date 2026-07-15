@@ -209,10 +209,10 @@ Footer: "Prepared by: Viral Bhatt | Founder, Money Mantra | AMFI Registered Mutu
 
       // Combine status — DOCX sent in first call, PDF in second
       const combinedStatus = {
-        clientSent: data.emailStatus?.clientSent || false,
-        advisorSent: data.emailStatus?.advisorSent || false,
+        clientSent: pdfEmailSent,
+        advisorSent: pdfEmailSent,
         pdfSent: pdfEmailSent,
-        error: data.emailStatus?.error || null,
+        error: pdfEmailSent ? null : "Email sending failed",
       };
       setEmailStatus(combinedStatus);
       setStep(7);
